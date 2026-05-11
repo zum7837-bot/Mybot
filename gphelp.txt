@@ -1,0 +1,242 @@
+from telegram import Update
+from telegram.ext import (
+    ApplicationBuilder,
+    CommandHandler,
+    MessageHandler,
+    ContextTypes,
+    filters
+)
+
+# BOT TOKEN
+TOKEN = "8615416853:AAH2xNcJtvMCQzunccxZQenqu1qK5YcOgBw"
+
+# AUTO REPLIES
+auto_replies = {}
+
+# STICKER MEMORY
+user_stickers = {}
+
+# START
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+    await update.message.reply_text(
+        """
+🤖 Bot Online ✅
+
+📌 Commands
+/addreply
+
+📌 Example
+/addreply hi hello bro 👋
+"""
+    )
+
+# ADD REPLY
+async def add_reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+    try:
+
+        text = update.message.text.replace(
+            "/addreply ",
+            ""
+        )
+
+        trigger, reply = text.split(" ", 1)
+
+        trigger = trigger.lower()
+
+        auto_replies[trigger] = reply
+
+        await update.message.reply_text(
+            f"✅ Added\n\n{trigger} ➜ {reply}"
+        )
+
+    except:
+
+        await update.message.reply_text(
+            """
+❌ Example
+
+/addreply hi hello bro 👋
+"""
+        )
+
+# WELCOME
+async def welcome(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+    for user in update.message.new_chat_members:
+
+        username = (
+            f"@{user.username}"
+            if user.username
+            else user.first_name
+        )
+
+        group = update.effective_chat.title
+
+        text = f"""
+🔥 Welcome {username}
+
+💖 {group} မှကြိုဆိုပါတယ် 👋
+"""
+
+        try:
+
+            photos = await context.bot.get_user_profile_photos(
+                user.id
+            )
+
+            if photos.total_count > 0:
+
+                photo = photos.photos[0][-1].file_id
+
+                await context.bot.send_photo(
+                    chat_id=update.effective_chat.id,
+                    photo=photo,
+                    caption=text
+                )
+
+            else:
+
+                await context.bot.send_message(
+                    chat_id=update.effective_chat.id,
+                    text=text
+                )
+
+        except:
+
+            await context.bot.send_message(
+                chat_id=update.effective_chat.id,
+                text=text
+            )
+
+# GOODBYE
+async def goodbye(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+    user = update.message.left_chat_member
+
+    username = (
+        f"@{user.username}"
+        if user.username
+        else user.first_name
+    )
+
+    group = update.effective_chat.title
+
+    text = f"""
+💔 {username}
+
+🚪 {group} မှထွက်ခွာသွားပါသည်...
+"""
+
+    try:
+
+        photos = await context.bot.get_user_profile_photos(
+            user.id
+        )
+
+        if photos.total_count > 0:
+
+            photo = photos.photos[0][-1].file_id
+
+            await context.bot.send_photo(
+                chat_id=update.effective_chat.id,
+                photo=photo,
+                caption=text
+            )
+
+        else:
+
+            await context.bot.send_message(
+                chat_id=update.effective_chat.id,
+                text=text
+            )
+
+    except:
+
+        await context.bot.send_message(
+            chat_id=update.effective_chat.id,
+            text=text
+        )
+
+# STICKER FILTER
+async def sticker_filter(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+    user_id = update.effective_user.id
+
+    if user_id not in user_stickers:
+        user_stickers[user_id] = 1
+    else:
+        user_stickers[user_id] += 1
+
+    if user_stickers[user_id] > 5:
+
+        await update.message.delete()
+
+        user_stickers[user_id] = 0
+
+# AUTO REPLY
+async def message_filter(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+    if not update.message:
+        return
+
+    if not update.message.text:
+        return
+
+    text = update.message.text.lower()
+
+    if text in auto_replies:
+
+        await update.message.reply_text(
+            auto_replies[text]
+        )
+
+# BOT SETUP
+app = ApplicationBuilder().token(TOKEN).build()
+
+# COMMANDS
+app.add_handler(
+    CommandHandler("start", start)
+)
+
+app.add_handler(
+    CommandHandler("addreply", add_reply)
+)
+
+# WELCOME
+app.add_handler(
+    MessageHandler(
+        filters.StatusUpdate.NEW_CHAT_MEMBERS,
+        welcome
+    )
+)
+
+# GOODBYE
+app.add_handler(
+    MessageHandler(
+        filters.StatusUpdate.LEFT_CHAT_MEMBER,
+        goodbye
+    )
+)
+
+# STICKER FILTER
+app.add_handler(
+    MessageHandler(
+        filters.Sticker.ALL,
+        sticker_filter
+    )
+)
+
+# AUTO REPLY
+app.add_handler(
+    MessageHandler(
+        filters.TEXT & ~filters.COMMAND,
+        message_filter
+    )
+)
+
+print("Bot Running ✅")
+
+# RUN
+app.run_polling()
